@@ -1,4 +1,3 @@
-import { EventSourcePolyfill } from 'event-source-polyfill'
 
 export const startChatStream = (
     input: string,
