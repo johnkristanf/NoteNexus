@@ -1,5 +1,6 @@
-import * as React from 'react'
-import { GalleryVerticalEnd, NotebookPen, Search } from 'lucide-react'
+'use client'
+
+import { GalleryVerticalEnd, NotebookPen } from 'lucide-react'
 
 import {
     Sidebar,
@@ -14,24 +15,43 @@ import {
     SidebarMenuSubItem,
     SidebarRail,
 } from '@/components/ui/sidebar'
-import Link from 'next/link'
 
-// This is sample data.
-const data = {
-    navMain: [
-        {
-            title: 'Chats',
-            items: [
-                {
-                    title: 'Routing',
-                    url: '#',
-                },
-            ],
-        },
-    ],
-}
+import Link from 'next/link'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchChats } from '@/lib/api/chats/get'
+import { toast } from 'sonner'
+import { updateChat } from '@/lib/api/chats/patch'
+import { EditableChatItem } from './editable-chat-item'
+import { SearchChat } from './search-chat'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    // FETCH ALL MESSAGES BY CHAT ID
+    const {
+        data: chats,
+        isLoading,
+        isError,
+        error,
+    } = useQuery({
+        queryKey: ['chats'],
+        queryFn: fetchChats,
+    })
+
+    if (isError) {
+        toast.error(error.message)
+        return
+    }
+
+    const queryClient = useQueryClient()
+
+    // Mutations
+    const updateChatMutation = useMutation({
+        mutationFn: updateChat,
+        onSuccess: () => {
+            // Invalidate and refetch
+            queryClient.invalidateQueries({ queryKey: ['chats'] })
+        },
+    })
+
     return (
         <Sidebar {...props}>
             <SidebarHeader>
@@ -56,10 +76,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <SidebarGroup>
-                    <SidebarMenu>
-                        {data.navMain.map((item) => (
-                            <SidebarMenuItem key={item.title}>
+                {isLoading ? (
+                    <div className="flex justify-center text-lg mt-3 text-gray-500 animate-pulse">
+                        Loading chats...
+                    </div>
+                ) : (
+                    <SidebarGroup>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
                                 <SidebarMenuButton asChild>
                                     <h1 className="font-medium">Getting Started</h1>
                                 </SidebarMenuButton>
@@ -77,32 +101,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 <SidebarMenuSub>
                                     <SidebarMenuSubItem>
                                         <SidebarMenuSubButton asChild>
-                                            <Link href={'/new-chat'}>
-                                                <Search />
-                                                Search Chat
-                                            </Link>
+                                            <SearchChat />
                                         </SidebarMenuSubButton>
                                     </SidebarMenuSubItem>
                                 </SidebarMenuSub>
 
                                 <SidebarMenuButton asChild>
-                                    <h1 className="font-medium">{item.title}</h1>
+                                    <h1 className="font-medium">Chats</h1>
                                 </SidebarMenuButton>
-                                {item.items?.length ? (
-                                    <SidebarMenuSub>
-                                        {item.items.map((item) => (
-                                            <SidebarMenuSubItem key={item.title}>
+
+                                {chats &&
+                                    chats.map((chat) => (
+                                        <SidebarMenuSub key={chat.id}>
+                                            <SidebarMenuSubItem key={chat.title}>
                                                 <SidebarMenuSubButton asChild>
-                                                    <a href={item.url}>{item.title}</a>
+                                                    <EditableChatItem
+                                                        chat_id={chat.id}
+                                                        title={chat.title}
+                                                    />
                                                 </SidebarMenuSubButton>
                                             </SidebarMenuSubItem>
-                                        ))}
-                                    </SidebarMenuSub>
-                                ) : null}
+                                        </SidebarMenuSub>
+                                    ))}
                             </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
-                </SidebarGroup>
+                        </SidebarMenu>
+                    </SidebarGroup>
+                )}
             </SidebarContent>
             <SidebarRail />
         </Sidebar>
