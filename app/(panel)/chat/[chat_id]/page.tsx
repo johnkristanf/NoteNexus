@@ -1,0 +1,612 @@
+'use client'
+
+import { useParams } from 'next/navigation'
+import { startChatStream } from '@/lib/event-source'
+import { Link, Mic, Send, Square } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import Markdown from 'react-markdown'
+import remarkGFM from 'remark-gfm'
+import { flushMarkdownBuffer, processMarkdownWithHierarchicalLists } from '@/lib/utils'
+import { useChatStore } from '@/store/chatStore'
+import { Message, MessagePayload } from '@/types/message'
+import { createNewMessage, sendLLMMessage } from '@/lib/api/messages/post'
+import { toast } from 'sonner'
+import { useQuery } from '@tanstack/react-query'
+import { fetchMessages } from '@/lib/api/messages/get'
+import { DotLoader } from '@/components/dot-loader'
+
+export default function DynamicPage() {
+    const [input, setInput] = useState<string>('')
+    const hasSentInitial = useRef(false)
+
+    const endOfMessagesRef = useRef<HTMLDivElement | null>(null)
+    const [stateMessages, setStateMessages] = useState<Message[]>([])
+    const [isStreaming, setIsStreaming] = useState(false)
+    const eventSourceControllerRef = useRef<EventSource | null>(null)
+
+    // CHAT PARAMETERS
+    const params = useParams()
+    const chatID = params.chat_id as string
+
+    // FETCH ALL MESSAGES BY CHAT ID
+    const {
+        data: messages,
+        isLoading,
+        isError,
+        error,
+    } = useQuery({
+        queryKey: ['users', chatID],
+        queryFn: () => fetchMessages(chatID),
+    })
+
+    if (isError) {
+        toast.error(error.message)
+        return
+    }
+
+    // CHAT STREAM HANDLER
+    // const handleSendChat = async (initialInput?: string) => {
+    //     const message = initialInput ?? input
+    //     if (!message.trim()) return
+
+    //     setInput('')
+    //     setIsStreaming(true)
+
+    //     try {
+    //         // CREATE NEW MESSAGE FOR THE USER ROLE
+    //         const userMessage: Message = {
+    //             chat_id: chatID,
+    //             role: 'user',
+    //             content: message,
+    //             token_count: 0,
+    //         }
+    //         await createNewMessage(userMessage)
+
+    //         // Show user's message immediately
+    //         setStateMessages((prev) => [...prev, userMessage])
+
+    //         let assistantMessage: Message = {
+    //             chat_id: chatID,
+    //             role: 'assistant',
+    //             content: '',
+    //             token_count: 0,
+    //         }
+
+    //         let markdownBuffer = ''
+    //         let accumulatedContent = ''
+
+    //         eventSourceControllerRef.current = startChatStream(
+    //             message,
+    //             chatID,
+    //             async (chunk, isStreamingDone, isStreamingError) => {
+    //                 if (isStreamingError) {
+    //                     toast.error('Unexpected error occurred, please try again')
+    //                     setIsStreaming(false)
+    //                     return
+    //                 }
+
+    //                 markdownBuffer += chunk
+    //                 const { flushed, remaining } = flushMarkdownBuffer(markdownBuffer)
+
+    //                 console.log('flushed data: ', flushed)
+
+    //                 if (flushed) {
+    //                     const processedContent = processMarkdownWithHierarchicalLists(flushed)
+    //                     accumulatedContent += processedContent
+
+    //                     assistantMessage.content = accumulatedContent
+
+    //                     // Update conversation state
+    //                     setStateMessages((prev) => {
+    //                         const copy = [...prev]
+    //                         if (copy.length && copy[copy.length - 1].role === 'assistant') {
+    //                             copy[copy.length - 1] = { ...assistantMessage }
+    //                         } else {
+    //                             copy.push({ ...assistantMessage })
+    //                         }
+    //                         return copy
+    //                     })
+    //                 }
+
+    //                 // Keep remaining content in buffer
+    //                 markdownBuffer = remaining
+
+    //                 if (isStreamingDone) {
+    //                     if (markdownBuffer.trim()) {
+    //                         const finalContent = processMarkdownWithHierarchicalLists(markdownBuffer)
+    //                         accumulatedContent += finalContent
+    //                     }
+
+    //                     // Final post-processing
+    //                     const finalProcessedContent = processMarkdownWithHierarchicalLists(accumulatedContent)
+    //                     assistantMessage.content = finalProcessedContent
+
+    //                     // Final state update
+    //                     setStateMessages((prev) => {
+    //                         const copy = [...prev]
+    //                         if (copy.length && copy[copy.length - 1].role === 'assistant') {
+    //                             copy[copy.length - 1] = { ...assistantMessage }
+    //                         } else {
+    //                             copy.push({ ...assistantMessage })
+    //                         }
+    //                         return copy
+    //                     })
+
+    //                     await createNewMessage(assistantMessage)
+    //                     setIsStreaming(false)
+    //                 }
+    //             }
+    //         )
+    //     } catch (error) {
+    //         if (error instanceof Error) {
+    //             toast.error(error.message)
+    //             setIsStreaming(false)
+    //         }
+    //     }
+    // }
+
+    const handleSendChat = async (initialInput?: string) => {
+        const message = initialInput ?? input
+        if (!message.trim()) return
+
+        setInput('')
+        setIsStreaming(true)
+
+        const userMessage: Message = {
+            chat_id: chatID,
+            role: 'user',
+            content: message,
+            token_count: 0,
+        }
+        setStateMessages((prev) => [...prev, userMessage])
+
+        // SET STATE MESSAGE FOR USER ROLE
+
+        const messagePayload: MessagePayload = {
+            chat_id: chatID,
+            input: message,
+        }
+
+        try {
+            const contentResponse = await sendLLMMessage(messagePayload)
+
+            if (contentResponse) {
+                const assistantMessage: Message = {
+                    chat_id: chatID,
+                    role: 'assistant',
+                    content: contentResponse,
+                    token_count: 0,
+                }
+
+                // SET STATE MESSAGE FOR ASSISTANT ROLE
+                setStateMessages((prev) => {
+                    const copy = [...prev]
+                    if (copy.length && copy[copy.length - 1].role === 'assistant') {
+                        copy[copy.length - 1] = { ...assistantMessage }
+                    } else {
+                        copy.push({ ...assistantMessage })
+                    }
+                    return copy
+                })
+                setIsStreaming(false)
+
+                // SAVE MESSAGE FOR THE USER
+                await createNewMessage(userMessage)
+
+                // SAVE MESSAGE FOR THE ASSISTANT
+                await createNewMessage(assistantMessage)
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                toast.error(error.message)
+            }
+        }
+    }
+
+    // EVENT STEAM STOP
+    const handleStop = () => {
+        if (eventSourceControllerRef.current) {
+            eventSourceControllerRef.current.close()
+            setIsStreaming(false)
+        }
+    }
+
+    useEffect(() => {
+        const storedInitialInput = useChatStore.getState().initialInput
+
+        if (storedInitialInput && !hasSentInitial.current) {
+            handleSendChat(storedInitialInput)
+            hasSentInitial.current = true
+            useChatStore.getState().clear()
+        }
+    }, [chatID])
+
+    useEffect(() => {
+        if (!isStreaming) {
+            endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }
+
+        console.log('messages: ', messages)
+        console.log('stateMessages: ', stateMessages)
+    }, [messages, stateMessages])
+
+    return (
+        <div className="h-[80vh] flex items-end justify-center max-w-full overflow-hidden">
+            <div className="w-full flex flex-col gap-5">
+                {/* MESSAGES LOADER */}
+                {isLoading && (
+                    <div className="flex justify-center py-4 text-xl text-gray-500 animate-pulse">
+                        Loading messages...
+                    </div>
+                )}
+
+                {/* CONVERSATION BOX */}
+                <div className="h-[60vh] overflow-y-auto p-3 space-y-2 rounded-lg max-w-full">
+                    {[...(messages ?? []), ...stateMessages].map((msg, idx) => (
+                        <div
+                            key={idx}
+                            className={`flex ${
+                                msg.role === 'user' ? 'justify-end' : 'justify-start'
+                            }`}
+                        >
+                            <div
+                                className={`max-w-[70%] min-w-0 rounded-lg p-3 break-words overflow-wrap-anywhere ${
+                                    msg.role === 'user'
+                                        ? 'bg-violet-600 text-white rounded-br-none'
+                                        : 'bg-slate-800 text-gray-100 rounded-bl-none'
+                                }`}
+                            >
+                                <Markdown
+                                    remarkPlugins={[remarkGFM]}
+                                    components={{
+                                        // Text elements - ADD PROPER WORD WRAPPING
+                                        p: ({ children }) => (
+                                            <p className="mb-4 leading-relaxed text-gray-100 dark:text-gray-100 break-words">
+                                                {children}
+                                            </p>
+                                        ),
+
+                                        // Headings with proper hierarchy
+                                        h1: ({ children }) => (
+                                            <h1 className="text-3xl font-bold text-white dark:text-white mb-6 mt-8 pb-2 border-b border-gray-200 dark:border-gray-700 break-words">
+                                                {children}
+                                            </h1>
+                                        ),
+                                        h2: ({ children }) => (
+                                            <h2 className="text-2xl font-semibold text-white dark:text-white mb-4 mt-7 pb-1 border-b border-gray-100 dark:border-gray-800 break-words">
+                                                {children}
+                                            </h2>
+                                        ),
+                                        h3: ({ children }) => (
+                                            <h3 className="text-xl font-semibold text-white dark:text-white mb-3 mt-6 break-words">
+                                                {children}
+                                            </h3>
+                                        ),
+                                        h4: ({ children }) => (
+                                            <h4 className="text-lg font-medium text-white dark:text-white mb-2 mt-5 break-words">
+                                                {children}
+                                            </h4>
+                                        ),
+                                        h5: ({ children }) => (
+                                            <h5 className="text-base font-medium text-white dark:text-white mb-2 mt-4 break-words">
+                                                {children}
+                                            </h5>
+                                        ),
+                                        h6: ({ children }) => (
+                                            <h6 className="text-sm font-medium text-gray-100 dark:text-gray-100 mb-2 mt-3 uppercase tracking-wide break-words">
+                                                {children}
+                                            </h6>
+                                        ),
+
+                                        // Text formatting
+                                        strong: ({ children }) => (
+                                            <strong className="font-bold text-violet-600 dark:text-violet-400">
+                                                {children}
+                                            </strong>
+                                        ),
+                                        em: ({ children }) => (
+                                            <em className="italic text-gray-100 dark:text-gray-100">
+                                                {children}
+                                            </em>
+                                        ),
+
+                                        // Code elements - ADD PROPER OVERFLOW HANDLING
+                                        code: ({ inline, className, children }) => {
+                                            const language =
+                                                className?.replace('language-', '') || ''
+
+                                            if (inline) {
+                                                return (
+                                                    <code className="bg-gray-100 dark:bg-gray-800 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded text-sm font-mono border break-all">
+                                                        {children}
+                                                    </code>
+                                                )
+                                            }
+
+                                            return (
+                                                <div className="mb-4 rounded-lg overflow-hidden max-w-full">
+                                                    {language && (
+                                                        <div className="bg-gray-200 dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-800 dark:text-gray-100 border-b">
+                                                            {language}
+                                                        </div>
+                                                    )}
+                                                    <pre className="bg-gray-900 dark:bg-gray-950 text-gray-100 p-4 overflow-x-auto max-w-full">
+                                                        <code className="font-mono text-sm leading-relaxed whitespace-pre-wrap break-all">
+                                                            {children}
+                                                        </code>
+                                                    </pre>
+                                                </div>
+                                            )
+                                        },
+
+                                        // FIXED LISTS - Increased spacing and proper styling
+                                        ul: ({ children }) => (
+                                            <ul className="mb-6 ml-6 space-y-3 list-disc marker:text-violet-600 dark:marker:text-violet-400">
+                                                {children}
+                                            </ul>
+                                        ),
+                                        ol: ({ children }) => (
+                                            <ol className="mb-6 ml-6 space-y-3 list-decimal marker:text-violet-600 dark:marker:text-violet-400 marker:font-semibold">
+                                                {children}
+                                            </ol>
+                                        ),
+                                        li: ({ children }) => (
+                                            <li className="text-gray-100 dark:text-gray-100 leading-relaxed pl-2 break-words">
+                                                <div className="py-1">{children}</div>
+                                            </li>
+                                        ),
+
+                                        // Tables - ADD PROPER RESPONSIVE HANDLING
+                                        table: ({ children }) => (
+                                            <div className="mb-6 overflow-x-auto max-w-full">
+                                                <table className="min-w-full border-collapse border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                                    {children}
+                                                </table>
+                                            </div>
+                                        ),
+                                        thead: ({ children }) => (
+                                            <thead className="bg-gray-50 dark:bg-gray-800">
+                                                {children}
+                                            </thead>
+                                        ),
+                                        tbody: ({ children }) => (
+                                            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                                {children}
+                                            </tbody>
+                                        ),
+                                        tr: ({ children }) => (
+                                            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                                {children}
+                                            </tr>
+                                        ),
+                                        th: ({ children }) => (
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-100 dark:text-gray-100 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 break-words">
+                                                {children}
+                                            </th>
+                                        ),
+                                        td: ({ children }) => (
+                                            <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 break-words">
+                                                {children}
+                                            </td>
+                                        ),
+
+                                        // Blockquotes
+                                        blockquote: ({ children }) => (
+                                            <blockquote className="border-l-4 border-violet-600 dark:border-violet-400 pl-4 py-2 mb-4 bg-gray-50 dark:bg-gray-800 rounded-r-lg break-words">
+                                                <div className="italic text-gray-100 dark:text-gray-100">
+                                                    {children}
+                                                </div>
+                                            </blockquote>
+                                        ),
+
+                                        // Links - ADD WORD BREAKING
+                                        a: ({ href, children }) => (
+                                            <a
+                                                href={href}
+                                                className="text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 underline underline-offset-2 transition-colors break-all"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {children}
+                                            </a>
+                                        ),
+
+                                        // Images - ENSURE RESPONSIVE
+                                        img: ({ src, alt, title }) => (
+                                            <div className="mb-4">
+                                                <img
+                                                    src={src}
+                                                    alt={alt}
+                                                    title={title}
+                                                    className="max-w-full h-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+                                                    loading="lazy"
+                                                />
+                                                {alt && (
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center italic break-words">
+                                                        {alt}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ),
+
+                                        // Horizontal rule
+                                        hr: () => (
+                                            <hr className="my-8 border-0 h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent" />
+                                        ),
+
+                                        // Task lists (checkboxes)
+                                        input: ({ type, checked, disabled }) => {
+                                            if (type === 'checkbox') {
+                                                return (
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        disabled={disabled}
+                                                        className="mr-2 h-4 w-4 text-violet-600 focus:ring-violet-500 border-gray-300 rounded"
+                                                    />
+                                                )
+                                            }
+                                            return null
+                                        },
+
+                                        // Delete/strikethrough
+                                        del: ({ children }) => (
+                                            <del className="line-through text-gray-500 dark:text-gray-400">
+                                                {children}
+                                            </del>
+                                        ),
+
+                                        // Inline code alternative for syntax highlighting
+                                        inlineCode: ({ children }) => (
+                                            <code className="bg-violet-100 dark:bg-violet-900 text-violet-800 dark:text-violet-200 px-1.5 py-0.5 rounded text-sm font-mono font-medium break-all">
+                                                {children}
+                                            </code>
+                                        ),
+
+                                        // Custom components for enhanced styling
+                                        div: ({ className, children }) => {
+                                            if (className?.includes('callout')) {
+                                                const calloutType =
+                                                    className.match(/callout-(\w+)/)?.[1] || 'info'
+                                                const calloutStyles = {
+                                                    info: 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200',
+                                                    warning:
+                                                        'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200',
+                                                    error: 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200',
+                                                    success:
+                                                        'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200',
+                                                }
+
+                                                return (
+                                                    <div
+                                                        className={`p-4 mb-4 rounded-lg border-l-4 break-words ${
+                                                            calloutStyles[calloutType] ||
+                                                            calloutStyles.info
+                                                        }`}
+                                                    >
+                                                        {children}
+                                                    </div>
+                                                )
+                                            }
+
+                                            return <div className={className}>{children}</div>
+                                        },
+
+                                        // Keyboard keys
+                                        kbd: ({ children }) => (
+                                            <kbd className="inline-flex items-center px-2 py-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-sm font-mono shadow-sm">
+                                                {children}
+                                            </kbd>
+                                        ),
+
+                                        // Subscript and superscript
+                                        sub: ({ children }) => (
+                                            <sub className="text-xs">{children}</sub>
+                                        ),
+                                        sup: ({ children }) => (
+                                            <sup className="text-xs">{children}</sup>
+                                        ),
+
+                                        // Details/Summary (collapsible content)
+                                        details: ({ children }) => (
+                                            <details className="mb-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 max-w-full">
+                                                {children}
+                                            </details>
+                                        ),
+                                        summary: ({ children }) => (
+                                            <summary className="px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg font-medium text-gray-100 dark:text-gray-100 break-words">
+                                                {children}
+                                            </summary>
+                                        ),
+
+                                        // Math equations (if using remark-math)
+                                        math: ({ children }) => (
+                                            <div className="my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto max-w-full">
+                                                <code className="font-mono text-sm break-all">
+                                                    {children}
+                                                </code>
+                                            </div>
+                                        ),
+                                        inlineMath: ({ children }) => (
+                                            <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-1 py-0.5 rounded font-mono text-sm break-all">
+                                                {children}
+                                            </code>
+                                        ),
+                                    }}
+                                >
+                                    {msg.content}
+                                </Markdown>
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Assistant Typing Loader */}
+                    {isStreaming && (
+                        <div className="flex justify-start">
+                            <div className="max-w-[70%] min-w-0 rounded-lg p-3 bg-slate-800 text-gray-100 rounded-bl-none">
+                                <DotLoader />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 👇 Auto-scroll anchor */}
+                    <div ref={endOfMessagesRef} className="h-0" />
+                </div>
+
+                {!isLoading && (
+                    // CHATBOX
+                    <div className="w-full p-2 border-t border-slate-700 bg-slate-800 rounded-2xl">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                placeholder="Send a message..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                disabled={isStreaming}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSendChat()
+                                }}
+                                className="flex-1 bg-slate-800 text-white p-3 rounded-lg focus:outline-none "
+                            />
+                        </div>
+
+                        <div className="flex justify-between">
+                            <button
+                                disabled={isStreaming}
+                                className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
+                            >
+                                <Link />
+                            </button>
+
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={isStreaming}
+                                    className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
+                                >
+                                    <Mic />
+                                </button>
+
+                                {!isStreaming ? (
+                                    <button
+                                        onClick={() => handleSendChat()}
+                                        className="hover:opacity-75 hover:cursor-pointer bg-violet-600 text-white px-4 py-2 rounded"
+                                        disabled={isStreaming}
+                                    >
+                                        <Send />
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleStop}
+                                        className="hover:opacity-75 hover:cursor-pointer text-red-500 underline"
+                                    >
+                                        <Square />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
