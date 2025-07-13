@@ -20,6 +20,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+
 import { usePathname, useRouter } from 'next/navigation'
 
 interface EditableChat {
@@ -110,7 +111,7 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
             ) : (
                 <Link
                     href={`/chat/${chat_id}`}
-                    className={`flex-1 truncate px-2 py-1 rounded ${
+                    className={`flex-1 truncate text-sm px-2 py-1 rounded ${
                         isActive ? 'font-medium text-violet-700 dark:text-violet-100' : ''
                     }`}
                 >
@@ -121,7 +122,7 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
             {!isEditing && (
                 <Popover>
                     <PopoverTrigger>
-                        <EllipsisVertical className="text-gray-600 hover:cursor-pointer hover:opacity-75 ml-2" />
+                        <EllipsisVertical className="size-5 text-gray-600 hover:cursor-pointer hover:opacity-75 ml-2" />
                     </PopoverTrigger>
                     <PopoverContent className="w-32 flex flex-col !p-2">
                         {/* EDIT CHAT */}
