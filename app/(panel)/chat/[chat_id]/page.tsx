@@ -1,23 +1,26 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { startChatStream } from '@/lib/event-source'
-import { Link, Mic, Send, Square } from 'lucide-react'
+import { Link, Mic, Send, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGFM from 'remark-gfm'
-import { flushMarkdownBuffer, processMarkdownWithHierarchicalLists } from '@/lib/utils'
 import { useChatStore } from '@/store/chatStore'
 import { Message, MessagePayload } from '@/types/message'
-import { createNewMessage, sendLLMMessage } from '@/lib/api/messages/post'
+import { createNewMessage, sendLLMMessage, uploadLearningMaterials } from '@/lib/api/messages/post'
 import { toast } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import { fetchMessages } from '@/lib/api/messages/get'
 import { DotLoader } from '@/components/dot-loader'
 
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import StickyNotesDrawer from '@/components/sticky-notes/drawer'
+
 export default function DynamicPage() {
+    const [learningMaterialDisplay, setLearningMaterialDisplay] = useState<File | null>(null)
     const [input, setInput] = useState<string>('')
-    const hasSentInitial = useRef(false)
+    const hasSentInitial = useRef<boolean>(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const endOfMessagesRef = useRef<HTMLDivElement | null>(null)
     const [stateMessages, setStateMessages] = useState<Message[]>([])
@@ -147,7 +150,19 @@ export default function DynamicPage() {
 
     const handleSendChat = async (initialInput?: string) => {
         const message = initialInput ?? input
-        if (!message.trim()) return
+
+        // IF NO MESSAGE STRING PROVIDED, MEANS UPLOAD MATERIAL
+        if (!message.trim()) {
+            const learningMaterialName = useChatStore.getState().learningMaterialName
+            const uploadedLearningMaterialFile =
+                useChatStore.getState().uploadedLearningMaterialFile
+
+            if (uploadedLearningMaterialFile && learningMaterialName.trim()) {
+                handleUploadLearningMaterial(learningMaterialName, uploadedLearningMaterialFile)
+                setLearningMaterialDisplay(null)
+                return
+            }
+        }
 
         setInput('')
         setIsStreaming(true)
@@ -203,6 +218,57 @@ export default function DynamicPage() {
         }
     }
 
+    const handleUploadLearningMaterial = async (
+        learningMaterialName: string,
+        learningMaterialFile: File
+    ) => {
+        try {
+            const userMessage: Message = {
+                chat_id: chatID,
+                role: 'user',
+                content: learningMaterialName,
+                token_count: 0,
+            }
+            setStateMessages((prev) => [...prev, userMessage])
+            setIsStreaming(true)
+
+            const contentResponse = await uploadLearningMaterials(chatID, learningMaterialFile)
+
+            if (contentResponse) {
+                const assistantMessage: Message = {
+                    chat_id: chatID,
+                    role: 'assistant',
+                    content: contentResponse,
+                    token_count: 0,
+                }
+
+                // SET STATE MESSAGE FOR ASSISTANT ROLE
+                setStateMessages((prev) => {
+                    const copy = [...prev]
+                    if (copy.length && copy[copy.length - 1].role === 'assistant') {
+                        copy[copy.length - 1] = { ...assistantMessage }
+                    } else {
+                        copy.push({ ...assistantMessage })
+                    }
+                    return copy
+                })
+                setIsStreaming(false)
+
+                // SAVE MESSAGE FOR THE USER
+                await createNewMessage(userMessage)
+
+                // SAVE MESSAGE FOR THE ASSISTANT
+                await createNewMessage(assistantMessage)
+            }
+
+            // HANDLE THE NEW MESSAGE INSERTION FOR ASSISTANT
+        } catch (error) {
+            if (error instanceof Error) {
+                toast.error(error.message)
+            }
+        }
+    }
+
     // EVENT STEAM STOP
     const handleStop = () => {
         if (eventSourceControllerRef.current) {
@@ -211,27 +277,72 @@ export default function DynamicPage() {
         }
     }
 
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const allowedTypes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]
+
+        if (!allowedTypes.includes(file.type)) {
+            toast.warning(
+                'Only PDF and Word document files are allowed. Please upload a valid file.'
+            )
+            return
+        }
+
+        setLearningMaterialDisplay(file)
+
+        const fileType = file.type || 'unknown'
+        const learningMaterialName = `📄 ${file.name} (${fileType.split('/').pop()})`
+
+        useChatStore.getState().setLearningMaterialName(learningMaterialName)
+        useChatStore.getState().setUploadedLearningMaterialFile(file)
+    }
+
+    const handleRemoveFile = () => {
+        setLearningMaterialDisplay(null)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+
+    // USEEFFECT THAT HANDLES THE SENDING OF CHAT RIGHT AFTER INPUTTING IN THE
+    // NEW-CHAT PAGE
     useEffect(() => {
         const storedInitialInput = useChatStore.getState().initialInput
 
+        const uploadedLearningMaterialFile = useChatStore.getState().uploadedLearningMaterialFile
+        const learningMaterialName = useChatStore.getState().learningMaterialName
+
         if (storedInitialInput && !hasSentInitial.current) {
             handleSendChat(storedInitialInput)
+            useChatStore.getState().clearInitialInput()
+
+            // AVOID RE-SEND MESSAGE
             hasSentInitial.current = true
-            useChatStore.getState().clear()
+        } else if (uploadedLearningMaterialFile && !hasSentInitial.current) {
+            handleUploadLearningMaterial(learningMaterialName, uploadedLearningMaterialFile)
+
+            // CLEAR UPLOAD RELATED DATA
+            useChatStore.getState().clearlearningMaterialName()
+            useChatStore.getState().clearUploadedLearningMaterialFile()
+
+            // AVOID RE-UPLOAD
+            hasSentInitial.current = true
         }
     }, [chatID])
 
+    // USEEFFECT THAT HANDLES THE AUTO BOTTOM SCROLL UPON RENDER
     useEffect(() => {
         if (!isStreaming) {
             endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' })
         }
-
-        console.log('messages: ', messages)
-        console.log('stateMessages: ', stateMessages)
     }, [messages, stateMessages])
 
     return (
-        <div className="h-[80vh] flex items-end justify-center max-w-full overflow-hidden">
+        <div className="h-[80vh] flex items-end justify-center max-w-full  overflow-hidden">
             <div className="w-full flex flex-col gap-5">
                 {/* MESSAGES LOADER */}
                 {isLoading && (
@@ -240,8 +351,15 @@ export default function DynamicPage() {
                     </div>
                 )}
 
+                {/* STICKY NOTE DRAWER TRIGGER */}
+                {!isLoading && (
+                    <div className="w-full flex justify-end">
+                        <StickyNotesDrawer />
+                    </div>
+                )}
+
                 {/* CONVERSATION BOX */}
-                <div className="h-[60vh] overflow-y-auto p-3 space-y-2 rounded-lg max-w-full">
+                <div className="h-[50vh] overflow-y-auto p-3 space-y-2 rounded-lg max-w-full relative">
                     {[...(messages ?? []), ...stateMessages].map((msg, idx) => (
                         <div
                             key={idx}
@@ -268,12 +386,12 @@ export default function DynamicPage() {
 
                                         // Headings with proper hierarchy
                                         h1: ({ children }) => (
-                                            <h1 className="text-3xl font-bold text-white dark:text-white mb-6 mt-8 pb-2 border-b border-gray-200 dark:border-gray-700 break-words">
+                                            <h1 className="text-3xl font-bold text-white dark:text-white mb-6 mt-8 pb-5 border-b border-gray-200 dark:border-gray-700 break-words">
                                                 {children}
                                             </h1>
                                         ),
                                         h2: ({ children }) => (
-                                            <h2 className="text-2xl font-semibold text-white dark:text-white mb-4 mt-7 pb-1 border-b border-gray-100 dark:border-gray-800 break-words">
+                                            <h2 className="text-2xl font-semibold text-white dark:text-white mb-4 mt-7 pb-4 border-b border-gray-100 dark:border-gray-800 break-words">
                                                 {children}
                                             </h2>
                                         ),
@@ -456,13 +574,6 @@ export default function DynamicPage() {
                                             </del>
                                         ),
 
-                                        // Inline code alternative for syntax highlighting
-                                        inlineCode: ({ children }) => (
-                                            <code className="bg-violet-100 dark:bg-violet-900 text-violet-800 dark:text-violet-200 px-1.5 py-0.5 rounded text-sm font-mono font-medium break-all">
-                                                {children}
-                                            </code>
-                                        ),
-
                                         // Custom components for enhanced styling
                                         div: ({ className, children }) => {
                                             if (className?.includes('callout')) {
@@ -518,20 +629,6 @@ export default function DynamicPage() {
                                                 {children}
                                             </summary>
                                         ),
-
-                                        // Math equations (if using remark-math)
-                                        math: ({ children }) => (
-                                            <div className="my-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto max-w-full">
-                                                <code className="font-mono text-sm break-all">
-                                                    {children}
-                                                </code>
-                                            </div>
-                                        ),
-                                        inlineMath: ({ children }) => (
-                                            <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-1 py-0.5 rounded font-mono text-sm break-all">
-                                                {children}
-                                            </code>
-                                        ),
                                     }}
                                 >
                                     {msg.content}
@@ -553,30 +650,64 @@ export default function DynamicPage() {
                     <div ref={endOfMessagesRef} className="h-0" />
                 </div>
 
+                {/* CHATBOX */}
                 {!isLoading && (
-                    // CHATBOX
                     <div className="w-full p-2 border-t border-slate-700 bg-slate-800 rounded-2xl">
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="text"
-                                placeholder="Send a message..."
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                disabled={isStreaming}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSendChat()
-                                }}
-                                className="flex-1 bg-slate-800 text-white p-3 rounded-lg focus:outline-none "
-                            />
-                        </div>
+                        {/* File Badge */}
+                        {learningMaterialDisplay ? (
+                            <div className="flex items-center gap-2 bg-slate-700 text-white rounded-md px-3 py-2 mb-2 w-fit">
+                                📄 {learningMaterialDisplay.name} (
+                                {learningMaterialDisplay.type.split('/').pop()})
+                                <button
+                                    onClick={handleRemoveFile}
+                                    className="ml-2 hover:text-red-400"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Send a message..."
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    disabled={isStreaming}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSendChat()
+                                    }}
+                                    className="flex-1 bg-slate-800 text-white p-3 rounded-lg focus:outline-none "
+                                />
+                            </div>
+                        )}
 
                         <div className="flex justify-between">
-                            <button
-                                disabled={isStreaming}
-                                className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
-                            >
-                                <Link />
-                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
+
+                            {/* UPLOAD MATERIAL LINK */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
+                                    >
+                                        <Link />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="text-center">
+                                        Upload educational materials only. Uploaded content will{' '}
+                                        <br />
+                                        be analyzed to extract key concepts for academic <br />
+                                        study and learning enhancement.
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
 
                             <div className="flex gap-2">
                                 <button
