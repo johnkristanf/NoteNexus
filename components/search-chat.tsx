@@ -35,6 +35,8 @@ export function SearchChat() {
             </DialogTrigger>
 
             <DialogContent className="!p-2 sm:max-w-lg font-semibold">
+                <DialogTitle />
+                
                 <div className="absolute top-0 w-full border-b  py-3">
                     <input
                         autoFocus
@@ -45,7 +47,7 @@ export function SearchChat() {
                     />
                 </div>
 
-                <div className="w-full p-3 rounded-md mt-14 hover:bg-gray-100">
+                <div className="w-full p-3 rounded-md mt-8 hover:bg-gray-100">
                     <Link href={'/new-chat'} className='flex items-center gap-1 text-sm'>
                         <NotebookPen className='size-5' />
                         New Chat
