@@ -10,9 +10,6 @@ export async function createNewChat() {
             }),
         })
 
-        if (!response.ok) {
-            throw new Error(`Failed to create chat: ${response.status}`)
-        }
 
         const data = await response.json()
         return data.id;
