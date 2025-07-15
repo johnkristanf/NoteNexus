@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 import ReactQueryProvider from '@/components/react-query-provider'
+import { SessionProvider } from 'next-auth/react'
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -17,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
     title: 'NoteNexus',
     description: 'AI-based study note-taking application',
+    icons: {
+        icon: '/note_nexus_logo.svg',
+    },
 }
 
 export default function RootLayout({
@@ -26,11 +30,13 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-                <ReactQueryProvider>
-                    <main>{children}</main>
-                    <Toaster position="top-right" />
-                </ReactQueryProvider>
+            <body className={`${geistSans.variable} ${geistMono.variable} antialiased `}>
+                <SessionProvider>
+                    <ReactQueryProvider>
+                        <main>{children}</main>
+                        <Toaster position="top-right" />
+                    </ReactQueryProvider>
+                </SessionProvider>
             </body>
         </html>
     )
