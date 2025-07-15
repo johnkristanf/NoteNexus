@@ -2,7 +2,7 @@ export type Message = {
     chat_id: string
     role: string
     content: string
-    token_count: number
+    token_count?: number
 }
 
 
