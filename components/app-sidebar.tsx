@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import { updateChat } from '@/lib/api/chats/patch'
 import { EditableChatItem } from './editable-chat-item'
 import { SearchChat } from './search-chat'
+import { useSession } from 'next-auth/react'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     // FETCH ALL MESSAGES BY CHAT ID
@@ -41,16 +42,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         return
     }
 
-    const queryClient = useQueryClient()
-
-    // Mutations
-    const updateChatMutation = useMutation({
-        mutationFn: updateChat,
-        onSuccess: () => {
-            // Invalidate and refetch
-            queryClient.invalidateQueries({ queryKey: ['chats'] })
-        },
-    })
+    const { data: session } = useSession();
+    const user = session?.user;
 
     return (
         <Sidebar {...props}>
@@ -76,7 +69,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                {isLoading ? (
+                {(isLoading && !user) ? (
                     <div className="flex justify-center text-lg mt-3 text-gray-500 animate-pulse">
                         Loading chats...
                     </div>
