@@ -9,20 +9,26 @@ import {
     DrawerTrigger,
 } from '@/components/ui/drawer'
 import { cn, dateToTimeFormat } from '@/lib/utils'
-import { ArrowRight, Ellipsis, Plus, Search } from 'lucide-react'
+import { ArrowRight, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
-import StickyNoteDialog from './dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { fetchNotes } from '@/lib/api/notes/get'
 import { createNewNote } from '@/lib/api/notes/post'
 import StickyNoteOtions from './options'
 import { deleteNote } from '@/lib/api/notes/delete'
+import { useNoteStore } from '@/store/noteStore'
+import { FetchNotes } from '@/types/notes'
+import { useSession } from 'next-auth/react'
 
 export default function StickyNotesDrawer() {
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [hoveredNote, setHoveredNote] = useState<number>()
-    const [dbClickedNote, setDbClickedNote] = useState<number>()
     const queryClient = useQueryClient()
+    const { data: session } = useSession()
+    const user = session?.user;
+
+    const setNote = useNoteStore((state) => state.setNote)
 
     // FETCH ALL NOTES
     const {
@@ -54,11 +60,17 @@ export default function StickyNotesDrawer() {
     })
 
     const handleAddNewNote = () => {
-        addNewNoteMutatation.mutate()
+        addNewNoteMutatation.mutate(user?.id!)
     }
 
-    const handleOpenNote = (noteID: number) => {
-        setDbClickedNote(noteID)
+    const handleOpenNote = (note: FetchNotes) => {
+        setNote(note)
+        setIsDrawerOpen(false)
+    }
+
+    const handleDbClickOpenNote = (note: FetchNotes) => {
+        setNote(note)
+        setIsDrawerOpen(false)
     }
 
     // ADD NEW NOTE MUTATION
@@ -79,8 +91,11 @@ export default function StickyNotesDrawer() {
     }
 
     return (
-        <Drawer direction="right">
-            <DrawerTrigger className="flex items-center gap-1 text-violet-600 opacity-90 font-semibold hover:cursor-pointer hover:opacity-75">
+        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} direction="right">
+            <DrawerTrigger
+                onClick={() => setIsDrawerOpen(true)}
+                className="flex items-center gap-1 text-violet-600 opacity-90 font-semibold hover:cursor-pointer hover:opacity-75"
+            >
                 Sticky Notes
                 <ArrowRight className="size-5" />
             </DrawerTrigger>
@@ -109,24 +124,24 @@ export default function StickyNotesDrawer() {
                         </h1>
 
                         {/* ACTUAL STICKY NOTES */}
-                        <div className="h-[75vh] flex flex-col gap-5 overflow-y-auto">
+                        <div className="h-[75vh] flex flex-col gap-5 overflow-y-auto ">
                             {notes &&
                                 notes.map((note) => (
                                     <div
                                         key={note.id}
                                         className={cn(
-                                            'h-52 bg-violet-600  text-white relative flex-shrink-0',
+                                            'h-52 bg-violet-600 p-6 text-white relative flex-shrink-0 overflow-hidden',
                                             hoveredNote === 1 ? 'opacity-75 cursor-pointer' : ''
                                         )}
                                         onMouseEnter={() => setHoveredNote(note.id)}
                                         onMouseLeave={() => setHoveredNote(undefined)}
-                                        onDoubleClick={() => setDbClickedNote(note.id)}
+                                        onDoubleClick={() => handleDbClickOpenNote(note)}
                                     >
                                         {/* NOTE OPTION */}
-                                        <div className="absolute top-2 right-2 text-xs">
+                                        <div className="absolute top-1 right-1 text-xs">
                                             {hoveredNote === note.id ? (
                                                 <StickyNoteOtions
-                                                    onOpenNote={() => handleOpenNote(note.id)}
+                                                    onOpenNote={() => handleOpenNote(note)}
                                                     onDeleteNote={() => onDeleteNote(note.id)}
                                                 />
                                             ) : (
@@ -139,15 +154,6 @@ export default function StickyNotesDrawer() {
                                             className="prose prose-sm max-w-none text-white"
                                             dangerouslySetInnerHTML={{ __html: note.content }}
                                         />
-
-                                        {dbClickedNote === note.id && (
-                                            <StickyNoteDialog
-                                                noteID={note.id}
-                                                noteText={note.content}
-                                                isOpen={dbClickedNote === note.id}
-                                                onClose={() => setDbClickedNote(undefined)}
-                                            />
-                                        )}
                                     </div>
                                 ))}
                         </div>
