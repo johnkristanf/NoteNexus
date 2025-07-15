@@ -9,18 +9,29 @@ import { toast } from 'sonner'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQueryClient } from '@tanstack/react-query'
+import { useSession } from 'next-auth/react'
+import ChatSkeletonLoader from '@/components/chat-skeleton-loader'
 
 export default function NewChatPage() {
     const [learningMaterialDisplay, setLearningMaterialDisplay] = useState<File | null>(null)
     const [input, setInput] = useState<string>('')
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    const { data: session, status } = useSession()
+    const user = session?.user
+    const isLoadingSession = status === 'loading'
+
     const router = useRouter()
     const queryClient = useQueryClient()
 
     const handleCreateNewChat = async () => {
+        if (!user || !user?.id) {
+            console.warn('Session not loaded or user not authenticated.')
+            return
+        }
+
         try {
-            const chatID = await createNewChat()
+            const chatID = await createNewChat(user?.id)
             if (chatID) {
                 useChatStore.getState().setInitialInput(input.trim())
                 router.push(`/chat/${chatID}`)
@@ -66,83 +77,91 @@ export default function NewChatPage() {
 
     return (
         <div className="h-[80vh] flex items-center justify-center ">
-            <div className="w-full flex flex-col gap-5">
-                {/* NOTE NEXUS INTRODUCTION */}
-                <div className="flex flex-col items-center gap-1">
-                    <h1 className="font-bold text-3xl">
-                        Hi, I am Note <span className="text-violet-600">Nexus.</span>
-                    </h1>
-                    <p className="text-lg text-gray-500">How can I help in your studies?</p>
-                </div>
+            {isLoadingSession ? (
+                <ChatSkeletonLoader />
+            ) : (
+                <div className="w-full flex flex-col gap-5">
+                    {/* NOTE NEXUS INTRODUCTION */}
+                    <div className="flex flex-col items-center gap-1">
+                        <h1 className="font-bold text-3xl">
+                            Hi, I am Note <span className="text-violet-600">Nexus.</span>
+                        </h1>
+                        <p className="text-lg text-gray-500">How can I help in your studies?</p>
+                    </div>
 
-                {/* CHATBOX */}
-                <div className="w-full p-2 border-t border-slate-700 bg-slate-800 rounded-2xl">
-                    {/* File Badge */}
-                    {learningMaterialDisplay ? (
-                        <div className="flex items-center gap-2 bg-slate-700 text-white rounded-md px-3 py-2 mb-2 w-fit">
-                            📄 {learningMaterialDisplay.name} (
-                            {learningMaterialDisplay.type.split('/').pop()})
-                            <button onClick={handleRemoveFile} className="ml-2 hover:text-red-400">
-                                <X size={16} />
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="text"
-                                placeholder="Send a message..."
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleCreateNewChat()
-                                }}
-                                className="flex-1 bg-slate-800 text-white p-3 rounded-lg focus:outline-none"
-                            />
-                        </div>
-                    )}
-
-                    <div className="flex justify-between">
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            onChange={handleFileChange}
-                            className="hidden"
-                        />
-
-                        {/* UPLOAD MATERIAL LINK */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
+                    {/* CHATBOX */}
+                    <div className="w-full p-2 border-t border-slate-700 bg-slate-800 rounded-2xl">
+                        {/* File Badge */}
+                        {learningMaterialDisplay ? (
+                            <div className="flex items-center gap-2 bg-slate-700 text-white rounded-md px-3 py-2 mb-2 w-fit">
+                                📄 {learningMaterialDisplay.name} (
+                                {learningMaterialDisplay.type.split('/').pop()})
                                 <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
+                                    onClick={handleRemoveFile}
+                                    className="ml-2 hover:text-red-400"
                                 >
-                                    <Link />
+                                    <X size={16} />
                                 </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="text-center">
-                                    Upload educational materials only. Uploaded content will <br />
-                                    be analyzed to extract key concepts for academic <br />
-                                    study and learning enhancement.
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Send a message..."
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleCreateNewChat()
+                                    }}
+                                    className="flex-1 bg-slate-800 text-white p-3 rounded-lg focus:outline-none"
+                                />
+                            </div>
+                        )}
 
-                        <div className="flex gap-2">
-                            <button className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg ">
-                                <Mic />
-                            </button>
+                        <div className="flex justify-between">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
 
-                            <button
-                                onClick={handleCreateNewChat}
-                                className="hover:opacity-75 hover:cursor-pointer bg-violet-600 text-white px-4 py-2 rounded"
-                            >
-                                <Send />
-                            </button>
+                            {/* UPLOAD MATERIAL LINK */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
+                                    >
+                                        <Link />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="text-center">
+                                        Upload educational materials only. Uploaded content will{' '}
+                                        <br />
+                                        be analyzed to extract key concepts for academic <br />
+                                        study and learning enhancement.
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <div className="flex gap-2">
+                                <button className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg ">
+                                    <Mic />
+                                </button>
+
+                                <button
+                                    onClick={handleCreateNewChat}
+                                    className="hover:opacity-75 hover:cursor-pointer bg-violet-600 text-white px-4 py-2 rounded"
+                                >
+                                    <Send />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     )
 }
