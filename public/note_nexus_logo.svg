@@ -1,0 +1,127 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="chatGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60A5FA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A78BFA;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="documentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C084FC;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="notesGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A855F7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow filter -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle with gradient -->
+  <circle cx="100" cy="100" r="95" fill="url(#brainGradient)" opacity="0.1" stroke="url(#brainGradient)" stroke-width="2"/>
+  
+  <!-- Central brain/AI core -->
+  <g transform="translate(100, 100)" filter="url(#shadow)">
+    <!-- Brain outline -->
+    <path d="M -25 -15 Q -30 -25 -20 -30 Q -10 -35 0 -30 Q 10 -35 20 -30 Q 30 -25 25 -15 Q 25 -5 20 0 Q 25 10 20 20 Q 10 25 0 20 Q -10 25 -20 20 Q -25 10 -20 0 Q -25 -5 -25 -15 Z" 
+          fill="url(#brainGradient)" 
+          stroke="url(#brainGradient)" 
+          stroke-width="2"/>
+    
+    <!-- Brain connections/neural network -->
+    <g stroke="url(#brainGradient)" stroke-width="2" fill="none" opacity="0.8">
+      <path d="M -15 -10 Q -5 -5 5 -10"/>
+      <path d="M -10 0 Q 0 5 10 0"/>
+      <path d="M -15 10 Q -5 5 5 10"/>
+      <circle cx="-15" cy="-10" r="2" fill="url(#brainGradient)"/>
+      <circle cx="5" cy="-10" r="2" fill="url(#brainGradient)"/>
+      <circle cx="-10" cy="0" r="2" fill="url(#brainGradient)"/>
+      <circle cx="10" cy="0" r="2" fill="url(#brainGradient)"/>
+      <circle cx="-15" cy="10" r="2" fill="url(#brainGradient)"/>
+      <circle cx="5" cy="10" r="2" fill="url(#brainGradient)"/>
+    </g>
+  </g>
+  
+  <!-- Chat bubble (top-left) -->
+  <g transform="translate(65, 65)" filter="url(#glow)">
+    <path d="M -15 -10 Q -15 -15 -10 -15 L 10 -15 Q 15 -15 15 -10 L 15 5 Q 15 10 10 10 L -5 10 L -10 15 L -8 10 L -10 10 Q -15 10 -15 5 Z" 
+          fill="url(#chatGradient)" 
+          stroke="url(#chatGradient)" 
+          stroke-width="1.5"/>
+    <!-- Chat dots -->
+    <circle cx="-5" cy="-2" r="2" fill="white" opacity="0.9"/>
+    <circle cx="0" cy="-2" r="2" fill="white" opacity="0.9"/>
+    <circle cx="5" cy="-2" r="2" fill="white" opacity="0.9"/>
+  </g>
+  
+  <!-- Document (top-right) -->
+  <g transform="translate(135, 65)" filter="url(#glow)">
+    <rect x="-12" y="-15" width="20" height="25" rx="2" fill="url(#documentGradient)" stroke="url(#documentGradient)" stroke-width="1.5"/>
+    <!-- Document fold -->
+    <path d="M 8 -15 L 8 -5 L 18 -5" fill="none" stroke="url(#documentGradient)" stroke-width="1.5"/>
+    <path d="M 8 -15 L 8 -5 L 18 -5 Z" fill="rgba(255,255,255,0.2)"/>
+    <!-- Document lines -->
+    <line x1="-8" y1="-5" x2="4" y2="-5" stroke="white" stroke-width="1" opacity="0.7"/>
+    <line x1="-8" y1="0" x2="8" y2="0" stroke="white" stroke-width="1" opacity="0.7"/>
+    <line x1="-8" y1="5" x2="6" y2="5" stroke="white" stroke-width="1" opacity="0.7"/>
+  </g>
+  
+  <!-- Sticky note (bottom-left) -->
+  <g transform="translate(65, 135)" filter="url(#glow)">
+    <rect x="-12" y="-12" width="20" height="20" rx="2" fill="url(#notesGradient)" stroke="url(#notesGradient)" stroke-width="1.5"/>
+    <!-- Note fold corner -->
+    <path d="M 8 -12 L 8 -2 L 18 -2" fill="none" stroke="url(#notesGradient)" stroke-width="1"/>
+    <path d="M 8 -12 L 8 -2 L 18 -2 Z" fill="rgba(255,255,255,0.15)"/>
+    <!-- Note lines -->
+    <line x1="-8" y1="-5" x2="4" y2="-5" stroke="white" stroke-width="1" opacity="0.8"/>
+    <line x1="-8" y1="0" x2="6" y2="0" stroke="white" stroke-width="1" opacity="0.8"/>
+    <line x1="-8" y1="5" x2="3" y2="5" stroke="white" stroke-width="1" opacity="0.8"/>
+  </g>
+  
+  <!-- Upload/Extract arrow (bottom-right) -->
+  <g transform="translate(135, 135)" filter="url(#glow)">
+    <circle cx="0" cy="0" r="12" fill="url(#documentGradient)" stroke="url(#documentGradient)" stroke-width="1.5" opacity="0.9"/>
+    <!-- Upload arrow -->
+    <path d="M 0 -8 L -4 -2 L -2 -2 L -2 4 L 2 4 L 2 -2 L 4 -2 Z" fill="white" opacity="0.9"/>
+    <!-- Extract sparkles -->
+    <circle cx="-8" cy="-3" r="1" fill="white" opacity="0.7"/>
+    <circle cx="8" cy="-5" r="1" fill="white" opacity="0.7"/>
+    <circle cx="-6" cy="6" r="1" fill="white" opacity="0.7"/>
+    <circle cx="7" cy="7" r="1" fill="white" opacity="0.7"/>
+  </g>
+  
+  <!-- Connecting lines between elements -->
+  <g stroke="url(#brainGradient)" stroke-width="2" fill="none" opacity="0.3">
+    <!-- Brain to chat -->
+    <path d="M 85 85 Q 80 80 75 75"/>
+    <!-- Brain to document -->
+    <path d="M 115 85 Q 120 80 125 75"/>
+    <!-- Brain to sticky note -->
+    <path d="M 85 115 Q 80 120 75 125"/>
+    <!-- Brain to upload -->
+    <path d="M 115 115 Q 120 120 125 125"/>
+  </g>
+  
+  <!-- Subtle outer glow -->
+  <circle cx="100" cy="100" r="98" fill="none" stroke="url(#brainGradient)" stroke-width="1" opacity="0.3"/>
+</svg>
