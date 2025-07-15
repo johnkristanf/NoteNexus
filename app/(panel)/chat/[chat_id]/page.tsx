@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { Link, Mic, Send, Square, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGFM from 'remark-gfm'
 import { useChatStore } from '@/store/chatStore'
@@ -15,6 +15,8 @@ import { DotLoader } from '@/components/dot-loader'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import StickyNotesDrawer from '@/components/sticky-notes/drawer'
+import StickyNoteDraggable from '@/components/sticky-notes/draggable'
+import { useNoteStore } from '@/store/noteStore'
 
 export default function DynamicPage() {
     const [learningMaterialDisplay, setLearningMaterialDisplay] = useState<File | null>(null)
@@ -26,6 +28,8 @@ export default function DynamicPage() {
     const [stateMessages, setStateMessages] = useState<Message[]>([])
     const [isStreaming, setIsStreaming] = useState(false)
     const eventSourceControllerRef = useRef<EventSource | null>(null)
+
+    const { note, clearNote } = useNoteStore()
 
     // CHAT PARAMETERS
     const params = useParams()
@@ -42,111 +46,11 @@ export default function DynamicPage() {
         queryFn: () => fetchMessages(chatID),
     })
 
+    // FETCH MESSAGE ERROR HANDLING
     if (isError) {
         toast.error(error.message)
         return
     }
-
-    // CHAT STREAM HANDLER
-    // const handleSendChat = async (initialInput?: string) => {
-    //     const message = initialInput ?? input
-    //     if (!message.trim()) return
-
-    //     setInput('')
-    //     setIsStreaming(true)
-
-    //     try {
-    //         // CREATE NEW MESSAGE FOR THE USER ROLE
-    //         const userMessage: Message = {
-    //             chat_id: chatID,
-    //             role: 'user',
-    //             content: message,
-    //             token_count: 0,
-    //         }
-    //         await createNewMessage(userMessage)
-
-    //         // Show user's message immediately
-    //         setStateMessages((prev) => [...prev, userMessage])
-
-    //         let assistantMessage: Message = {
-    //             chat_id: chatID,
-    //             role: 'assistant',
-    //             content: '',
-    //             token_count: 0,
-    //         }
-
-    //         let markdownBuffer = ''
-    //         let accumulatedContent = ''
-
-    //         eventSourceControllerRef.current = startChatStream(
-    //             message,
-    //             chatID,
-    //             async (chunk, isStreamingDone, isStreamingError) => {
-    //                 if (isStreamingError) {
-    //                     toast.error('Unexpected error occurred, please try again')
-    //                     setIsStreaming(false)
-    //                     return
-    //                 }
-
-    //                 markdownBuffer += chunk
-    //                 const { flushed, remaining } = flushMarkdownBuffer(markdownBuffer)
-
-    //                 console.log('flushed data: ', flushed)
-
-    //                 if (flushed) {
-    //                     const processedContent = processMarkdownWithHierarchicalLists(flushed)
-    //                     accumulatedContent += processedContent
-
-    //                     assistantMessage.content = accumulatedContent
-
-    //                     // Update conversation state
-    //                     setStateMessages((prev) => {
-    //                         const copy = [...prev]
-    //                         if (copy.length && copy[copy.length - 1].role === 'assistant') {
-    //                             copy[copy.length - 1] = { ...assistantMessage }
-    //                         } else {
-    //                             copy.push({ ...assistantMessage })
-    //                         }
-    //                         return copy
-    //                     })
-    //                 }
-
-    //                 // Keep remaining content in buffer
-    //                 markdownBuffer = remaining
-
-    //                 if (isStreamingDone) {
-    //                     if (markdownBuffer.trim()) {
-    //                         const finalContent = processMarkdownWithHierarchicalLists(markdownBuffer)
-    //                         accumulatedContent += finalContent
-    //                     }
-
-    //                     // Final post-processing
-    //                     const finalProcessedContent = processMarkdownWithHierarchicalLists(accumulatedContent)
-    //                     assistantMessage.content = finalProcessedContent
-
-    //                     // Final state update
-    //                     setStateMessages((prev) => {
-    //                         const copy = [...prev]
-    //                         if (copy.length && copy[copy.length - 1].role === 'assistant') {
-    //                             copy[copy.length - 1] = { ...assistantMessage }
-    //                         } else {
-    //                             copy.push({ ...assistantMessage })
-    //                         }
-    //                         return copy
-    //                     })
-
-    //                     await createNewMessage(assistantMessage)
-    //                     setIsStreaming(false)
-    //                 }
-    //             }
-    //         )
-    //     } catch (error) {
-    //         if (error instanceof Error) {
-    //             toast.error(error.message)
-    //             setIsStreaming(false)
-    //         }
-    //     }
-    // }
 
     const handleSendChat = async (initialInput?: string) => {
         const message = initialInput ?? input
@@ -341,8 +245,19 @@ export default function DynamicPage() {
         }
     }, [messages, stateMessages])
 
+    // FILTER THE (message and stateMessage) MESSAGE TO AVOID UNEXPECTED DUPLICATION UPON RENDER
+    const combinedMessages = useMemo(() => {
+        const seen = new Set()
+        return [...(messages ?? []), ...stateMessages].filter((msg) => {
+            const key = `${msg.role}-${msg.content}`
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+        })
+    }, [messages, stateMessages])
+
     return (
-        <div className="h-[80vh] flex items-end justify-center max-w-full  overflow-hidden">
+        <div className="h-[100vh] flex justify-center max-w-full ">
             <div className="w-full flex flex-col gap-5">
                 {/* MESSAGES LOADER */}
                 {isLoading && (
@@ -358,9 +273,19 @@ export default function DynamicPage() {
                     </div>
                 )}
 
+                {/* DRAGGABLE STICKY NOTE */}
+                {note && (
+                    <StickyNoteDraggable
+                        noteID={note.id}
+                        noteText={note.content}
+                        isOpen={note !== null}
+                        onClose={clearNote}
+                    />
+                )}
+
                 {/* CONVERSATION BOX */}
-                <div className="h-[50vh] overflow-y-auto p-3 space-y-2 rounded-lg max-w-full relative">
-                    {[...(messages ?? []), ...stateMessages].map((msg, idx) => (
+                <div className="h-[80vh] overflow-y-auto p-3 space-y-2 rounded-lg max-w-full relative">
+                    {combinedMessages.map((msg, idx) => (
                         <div
                             key={idx}
                             className={`flex ${
@@ -652,7 +577,7 @@ export default function DynamicPage() {
 
                 {/* CHATBOX */}
                 {!isLoading && (
-                    <div className="w-full p-2 border-t border-slate-700 bg-slate-800 rounded-2xl">
+                    <div className="w-full  p-2 border-t border-slate-700 bg-slate-800 rounded-2xl">
                         {/* File Badge */}
                         {learningMaterialDisplay ? (
                             <div className="flex items-center gap-2 bg-slate-700 text-white rounded-md px-3 py-2 mb-2 w-fit">
@@ -676,7 +601,7 @@ export default function DynamicPage() {
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') handleSendChat()
                                     }}
-                                    className="flex-1 bg-slate-800 text-white p-3 rounded-lg focus:outline-none "
+                                    className="flex-1 bg-slate-800 text-white p-2 rounded-lg focus:outline-none "
                                 />
                             </div>
                         )}
@@ -694,9 +619,9 @@ export default function DynamicPage() {
                                 <TooltipTrigger asChild>
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
+                                        className="hover:opacity-75 hover:cursor-pointer text-white px-2 py-2 rounded-lg "
                                     >
-                                        <Link />
+                                        <Link className="size-5" />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -709,12 +634,12 @@ export default function DynamicPage() {
                                 </TooltipContent>
                             </Tooltip>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-4">
                                 <button
                                     disabled={isStreaming}
-                                    className="hover:opacity-75 hover:cursor-pointer text-white px-4 py-2 rounded-lg "
+                                    className="hover:opacity-75 hover:cursor-pointer text-white py-2 rounded-lg "
                                 >
-                                    <Mic />
+                                    <Mic className="size-5" />
                                 </button>
 
                                 {!isStreaming ? (
@@ -723,14 +648,14 @@ export default function DynamicPage() {
                                         className="hover:opacity-75 hover:cursor-pointer bg-violet-600 text-white px-4 py-2 rounded"
                                         disabled={isStreaming}
                                     >
-                                        <Send />
+                                        <Send className="size-5" />
                                     </button>
                                 ) : (
                                     <button
                                         onClick={handleStop}
                                         className="hover:opacity-75 hover:cursor-pointer text-red-500 underline"
                                     >
-                                        <Square />
+                                        <Square className="size-5" />
                                     </button>
                                 )}
                             </div>
