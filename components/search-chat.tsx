@@ -29,7 +29,7 @@ export function SearchChat() {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger className="w-full flex items-center gap-2 text-sm ml-1 hover:bg-violet-100 hover:cursor-pointer  py-1 rounded">
+            <DialogTrigger className="w-full flex items-center gap-2 text-sm  pl-1 hover:bg-violet-50 hover:cursor-pointer  py-1 rounded">
                 <Search className="size-5" />
                 Search Chat
             </DialogTrigger>
