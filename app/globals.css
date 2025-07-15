@@ -1,6 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+
+#sticky-note-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* Allows clicks to pass through unless a note handles it */
+  z-index: 9999;
+}
+
+#sticky-note-root > * {
+  pointer-events: auto; /* Allow note itself to still be interactive */
+}
+
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
