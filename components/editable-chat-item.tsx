@@ -98,6 +98,8 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
 
     return (
         <div className="flex items-center justify-between w-full">
+            
+            {/* INPUT TEXT WHEN RENAMING CHAT TITLE */}
             {isEditing ? (
                 <input
                     autoFocus
@@ -109,6 +111,7 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
                     className="bg-transparent border border-violet-600 px-2 py-1 rounded text-sm w-full mr-2 text-gray-800 dark:text-gray-100"
                 />
             ) : (
+                // DYNAMIC LINKS FOR EACH CHATS
                 <Link
                     href={`/chat/${chat_id}`}
                     className={`flex-1 truncate text-sm px-2 py-1 rounded ${
@@ -119,6 +122,7 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
                 </Link>
             )}
 
+            {/* CHATS OPTIONS (RENAME AND DELETE) */}
             {!isEditing && (
                 <Popover>
                     <PopoverTrigger>
