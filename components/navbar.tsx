@@ -26,7 +26,7 @@ export default function NavBar() {
                             alt="Note Nexus Logo"
                         />
                         <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-                            Note Nexus
+                            NoteNexus
                         </span>
                     </Link>
 
