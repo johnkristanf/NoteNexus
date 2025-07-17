@@ -354,7 +354,8 @@ export default function DynamicPage() {
                                         ),
 
                                         // Code elements - ADD PROPER OVERFLOW HANDLING
-                                        code: ({ inline, className, children }) => {
+                                        code: (props: any) => {
+                                            const { inline, className, children } = props
                                             const language =
                                                 className?.replace('language-', '') || ''
 
@@ -502,22 +503,22 @@ export default function DynamicPage() {
                                         // Custom components for enhanced styling
                                         div: ({ className, children }) => {
                                             if (className?.includes('callout')) {
+                                                type CalloutType = 'info' | 'warning' | 'error' | 'success';
                                                 const calloutType =
-                                                    className.match(/callout-(\w+)/)?.[1] || 'info'
-                                                const calloutStyles = {
+                                                    (className.match(/callout-(\w+)/)?.[1] as CalloutType) || 'info';
+                                                const calloutStyles: Record<CalloutType, string> = {
                                                     info: 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200',
                                                     warning:
                                                         'bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200',
                                                     error: 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200',
                                                     success:
                                                         'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200',
-                                                }
+                                                };
 
                                                 return (
                                                     <div
                                                         className={`p-4 mb-4 rounded-lg border-l-4 break-words ${
-                                                            calloutStyles[calloutType] ||
-                                                            calloutStyles.info
+                                                            calloutStyles[calloutType] || calloutStyles.info
                                                         }`}
                                                     >
                                                         {children}
