@@ -13,6 +13,7 @@ import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import { useMutation } from '@tanstack/react-query'
 import { setUserThemePreference } from '@/lib/api/user/post'
+import { useNoteStore } from '@/store/noteStore'
 
 export default function PanelLayout({
     children,
@@ -38,7 +39,7 @@ export default function PanelLayout({
             // Check if active element is inside a Quill editor
             const isInsideQuillEditor = !!activeEl?.closest('.ql-editor')
 
-            const isStickyNoteOpen = window.__stickyNoteOpen
+            const isStickyNoteOpen = useNoteStore((state) => state.isNoteOpen)
 
             if (
                 (isStickyNoteOpen || isInsideQuillEditor) &&

@@ -10,6 +10,7 @@ import { Rnd } from 'react-rnd'
 import debounce from 'lodash.debounce'
 import Quill from 'quill'
 import 'quill/dist/quill.snow.css'
+import { useNoteStore } from '@/store/noteStore'
 
 interface NoteDialogProps {
     noteID: number
@@ -27,6 +28,7 @@ export default function StickyNoteDraggable({
     const editorRef = useRef<HTMLDivElement>(null)
     const quillRef = useRef<Quill | null>(null)
     const queryClient = useQueryClient()
+    const setNoteOpen = useNoteStore((state) => state.setNoteOpen)
 
     // UPDATE NOTE MUTATION
     const mutation = useMutation({
@@ -113,13 +115,13 @@ export default function StickyNoteDraggable({
     // AVOIDING SIDEBAR GETTING TOGGLED ON KEY CTRL + B
     useEffect(() => {
         if (isOpen) {
-            window.__stickyNoteOpen = true
+            setNoteOpen(true)
         } else {
-            window.__stickyNoteOpen = false
+            setNoteOpen(false)
         }
 
         return () => {
-            window.__stickyNoteOpen = false
+            setNoteOpen(false)
         }
     }, [isOpen])
 
