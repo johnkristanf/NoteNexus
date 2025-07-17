@@ -1,7 +1,7 @@
 import { existingUserByEmail, insertNewUser, insertUserAccount } from '@/database/queries/user'
 import { signUpSchema } from '@/lib/zod'
 import { NextRequest, NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
+import bcrypt from 'bcrypt'
 import { Account } from 'next-auth'
 import { ZodError } from 'zod'
 import { User } from '@/types/user'

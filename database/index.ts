@@ -1,7 +1,13 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 
-export const db = drizzle(process.env.DATABASE_URL!)
+const client = postgres(process.env.DATABASE_URL!, {
+    // optional config
+    max: 1, // good default for serverless
+})
+
+// Pass the client to drizzle
+export const db = drizzle(client)
 
 // ONLY USE THIS FOR SEEDING
 async function main() {}
