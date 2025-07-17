@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         await insertUserAccount(newUser.id, account)
 
         return NextResponse.json(
-            { message: 'Registration Successful. Logging you In...', userId: newUser.id },
+            { message: 'Registration Successful. Logging you In...', userId: String(newUser.id) },
             { status: 201 }
         )
     } catch (error) {

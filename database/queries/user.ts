@@ -79,12 +79,12 @@ export async function insertUserAccount(user_id: string, account: Account) {
             type: account.type as AdapterAccountType,
             provider: account.provider,
             providerAccountId: account.providerAccountId,
-            access_token: account.access_token,
-            refresh_token: account.refresh_token,
-            id_token: account.id_token,
-            scope: account.scope,
-            token_type: account.token_type,
-            expires_at: account.expires_at,
+            access_token: account.access_token ?? null,
+            refresh_token: account.refresh_token ?? null,
+            id_token: account.id_token ?? null,
+            scope: account.scope ?? null,
+            token_type: account.token_type ?? null,
+            expires_at: account.expires_at ?? null,
         })
     } catch (error) {
         console.error('Error inserting new user: ', error)
