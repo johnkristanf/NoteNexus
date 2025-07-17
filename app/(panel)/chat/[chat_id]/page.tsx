@@ -260,7 +260,7 @@ export default function DynamicPage() {
         <div className="h-[100vh] flex justify-center max-w-full ">
             <div className="w-full flex flex-col gap-5">
                 {/* MESSAGES LOADER */}
-                {isLoading && (
+                {(isLoading && !isStreaming) && (
                     <div className="flex justify-center py-4 text-xl text-gray-500 animate-pulse">
                         Loading messages...
                     </div>

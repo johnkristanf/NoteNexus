@@ -3,20 +3,29 @@ import { db } from '..'
 import { accounts, users } from '../schema'
 import { Account } from 'next-auth'
 import type { AdapterAccountType } from '@auth/core/adapters'
-import { User } from '@/types/user'
+import { User, UserWithTheme } from '@/types/user'
 
-export async function existingUserByEmail(email: string): Promise<boolean> {
+export async function existingUserByEmail(email: string): Promise<UserWithTheme | null> {
     try {
-        const existing = await db.select().from(users).where(eq(users.email, email))
-        // RETURNS TRUE OF THE COND IS TRUE ELSE FALSE
-        return existing.length > 0
+        const [user] = await db
+            .select({
+                id: users.id,
+                name: users.name,
+                email: users.email,
+                theme: users.theme,
+                image: users.image,
+            })
+            .from(users)
+            .where(eq(users.email, email))
+
+        return user ?? null
     } catch (error) {
         console.error('Error checking existingUser: ', error)
         throw error
     }
 }
 
-export async function existingUserById(id: string) {
+export async function existingUserById(id: string): Promise<UserWithTheme> {
     try {
         const [user] = await db
             .select({
@@ -24,22 +33,22 @@ export async function existingUserById(id: string) {
                 name: users.name,
                 email: users.email,
                 image: users.image,
+                theme: users.theme,
             })
             .from(users)
             .where(eq(users.id, id))
             .limit(1)
 
         return user
-
     } catch (error) {
         console.error('Error checking existingUser: ', error)
         throw error
     }
 }
 
-export async function insertNewUser(user: User, isEmailVerified: boolean): Promise<string> {
+export async function insertNewUser(user: User, isEmailVerified: boolean): Promise<UserWithTheme> {
     try {
-        const result = await db
+        const [newUser] = await db
             .insert(users)
             .values({
                 name: user.name,
@@ -48,9 +57,15 @@ export async function insertNewUser(user: User, isEmailVerified: boolean): Promi
                 password: user.password,
                 emailVerified: isEmailVerified ? new Date() : null,
             })
-            .returning({ id: users.id })
+            .returning({
+                id: users.id,
+                name: users.name,
+                email: users.email,
+                image: users.image,
+                theme: users.theme,
+            })
 
-        return result[0]?.id
+        return newUser
     } catch (error) {
         console.error('Error inserting new user: ', error)
         throw error
@@ -98,6 +113,15 @@ export async function getUserFromDb(email: string) {
         return null
     } catch (error) {
         console.error('Error getting user from db: ', error)
+        throw error
+    }
+}
+
+export async function updateUserTheme(user_id: string, theme: string) {
+    try {
+        await db.update(users).set({ theme }).where(eq(users.id, user_id))
+    } catch (error) {
+        console.error('Error updating user theme preference: ', error)
         throw error
     }
 }

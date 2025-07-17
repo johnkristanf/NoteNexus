@@ -2,7 +2,7 @@ import { UpdateNote } from '@/types/notes'
 
 export const updateNote = async ({ note_id, updated_content }: UpdateNote): Promise<number> => {
     try {
-        const res = await fetch(`http://localhost:8000/api/v1/note/${note_id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/note/${note_id}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',

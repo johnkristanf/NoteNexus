@@ -10,6 +10,7 @@ export const users = pgTable('user', {
     password: varchar('password', { length: 128 }),
     emailVerified: timestamp('emailVerified', { mode: 'date' }),
     image: text('image'),
+    theme: text('theme'),
 })
 
 export const accounts = pgTable(

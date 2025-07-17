@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 import ReactQueryProvider from '@/components/react-query-provider'
 import { SessionProvider } from 'next-auth/react'
+import { ThemeProvider } from 'next-themes'
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -29,12 +30,14 @@ export default function RootLayout({
     children: React.ReactNode
 }>) {
     return (
-        <html lang="en">
+        <html lang="en" >
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased `}>
                 <SessionProvider>
                     <ReactQueryProvider>
-                        <main>{children}</main>
-                        <Toaster position="top-right" />
+                        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                            <main>{children}</main>
+                            <Toaster position="top-right" />
+                        </ThemeProvider>
                     </ReactQueryProvider>
                 </SessionProvider>
             </body>

@@ -2,7 +2,7 @@ import { Message, MessagePayload } from '@/types/message'
 
 export async function createNewMessage(message: Message) {
     try {
-        const response = await fetch('http://localhost:8000/api/v1/new/message', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/new/message`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -24,7 +24,7 @@ export async function createNewMessage(message: Message) {
 
 export async function sendLLMMessage(payload: MessagePayload) {
     try {
-        const response = await fetch('http://localhost:8000/api/v1/send/message', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/send/message`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -50,7 +50,7 @@ export async function uploadLearningMaterials(chat_id: string, learningMaterial:
         formData.append('chat_id', chat_id) // Must match the FastAPI parameter name
         formData.append('learningMaterial', learningMaterial) // Must match the FastAPI parameter name
 
-        const response = await fetch('http://localhost:8000/api/v1/upload/learning/material', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload/learning/material`, {
             method: 'POST',
             body: formData,
         })

@@ -35,20 +35,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
 
             authorize: async (credentials) => {
-                console.log('credentials: ', credentials)
-
                 const { email, password } = await signInSchema.parseAsync(credentials)
 
                 const user = await getUserFromDb(email)
-                if (!user || !user.password) throw new Error('Invalid credentials.')
-
-                console.log('User found: ', user)
-
+                if (!user || !user.password) return null
                 const isValid = await comparePassword(password, user.password)
-
-                console.log('isValid: ', isValid)
-
-                if (!isValid) throw new Error('Invalid credentials.')
+                if (!isValid) return null
 
                 return user
             },
@@ -56,9 +48,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     ],
 
     callbacks: {
-        async jwt({ token, account, profile }) {
+        async jwt({ token, account, profile, trigger, session }) {
             console.log('account: ', account)
             console.log('profile: ', profile)
+
+            if (trigger === 'update') {
+                if (session?.theme) {
+                    token.theme = session.theme
+                }
+                return token
+            }
 
             // OAUTH LOGIN
             if (account && profile) {
@@ -73,14 +72,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         image: profile.picture,
                     }
 
-                    const newUserID = await insertNewUser(user, profile.email_verified!)
-                    await insertUserAccount(newUserID, account)
+                    const newUser = await insertNewUser(user, profile.email_verified!)
+                    await insertUserAccount(newUser.id, account)
+
+                    token.id = newUser.id
+                    token.name = newUser.name
+                    token.email = newUser.email
+                    token.image = newUser.image
+                    token.theme = newUser.theme
+
+                    return token
                 }
 
-                token.id = profile.sub
-                token.name = profile.name
-                token.email = profile.email
-                token.image = profile.picture
+                // IF USER ALREADY EXISTS INSIDE DATABASE
+                token.id = user.id
+                token.name = user.name
+                token.email = user.email
+                token.image = user.image
+                token.theme = user.theme
 
                 return token
             }
@@ -92,15 +101,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 token.name = user.name
                 token.email = user.email
                 token.image = user.image
+                token.theme = user.theme
             }
 
             return token
         },
         async session({ session, token }) {
+            console.log('token inside session: ', token)
+
             session.user.id = token.id as string
             session.user.name = token.name as string
             session.user.email = token.email as string
             session.user.image = token.image as string
+            session.user.theme = token.theme as string
             return session
         },
     },

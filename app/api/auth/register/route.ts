@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         }
 
         const isEmailVerified = false
-        const newUserID = await insertNewUser(user, isEmailVerified)
+        const newUser = await insertNewUser(user, isEmailVerified)
 
         const account: Account = {
             type: 'credentials',
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
             providerAccountId: user.email,
         }
 
-        await insertUserAccount(newUserID, account)
+        await insertUserAccount(newUser.id, account)
 
         return NextResponse.json(
-            { message: 'Registration Successful. Logging you In...', userId: newUserID },
+            { message: 'Registration Successful. Logging you In...', userId: newUser.id },
             { status: 201 }
         )
     } catch (error) {

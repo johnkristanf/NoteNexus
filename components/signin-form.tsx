@@ -8,9 +8,31 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { signInCredentialsAction, signInOAuthAction } from '@/actions/authentication'
 import { useState } from 'react'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 export function SigninForm({ className, ...props }: React.ComponentProps<'div'>) {
     const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
+    const router = useRouter()
+
+    const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setIsSigningIn(true)
+
+        const formData = new FormData(e.currentTarget)
+        const signInResult = await signInCredentialsAction(formData)
+
+        const credentialsAuthenticationErrors = ['Configuration', 'CredentialsSignin', 'Default']
+
+        if (credentialsAuthenticationErrors.includes(signInResult)) {
+            setIsSigningIn(false)
+            toast.error('Invalid Credentials. Please try again.')
+            return
+        }
+
+        setIsSigningIn(false)
+        router.replace('/new-chat')
+    }
 
     return (
         <div className={cn('flex flex-col gap-6', className)} {...props}>
@@ -20,7 +42,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<'div'>)
                     <CardDescription>Login with your Google account</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form action={signInCredentialsAction}>
+                    <form onSubmit={(e) => handleSignIn(e)}>
                         <div className="grid gap-6">
                             <div className="flex flex-col gap-4">
                                 <Button
@@ -46,12 +68,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<'div'>)
                             <div className="grid gap-6">
                                 <div className="grid gap-3">
                                     <Label htmlFor="email">Email</Label>
-                                    <Input
-                                        type="email"
-                                        name="email"
-                                        placeholder="m@example.com"
-                                        required
-                                    />
+                                    <Input type="text" name="email" placeholder="m@example.com" />
                                 </div>
                                 <div className="grid gap-3">
                                     <div className="flex items-center">

@@ -1,6 +1,6 @@
 export const deleteNote = async (noteID: number): Promise<number> => {
     try {
-        const res = await fetch(`http://localhost:8000/api/v1/note/${noteID}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/note/${noteID}`, {
             method: 'DELETE',
         })
 

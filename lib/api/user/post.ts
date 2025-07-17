@@ -28,3 +28,30 @@ export async function registerUser(user: RegisterUser) {
         throw error
     }
 }
+
+export async function setUserThemePreference(themeData: { user_id: string; theme: string }) {
+    try {
+        const res = await fetch('/api/user/theme', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(themeData),
+        })
+
+        const json = await res.json()
+
+        if (!res.ok) {
+            const error = new Error(json.error || 'Something went wrong.')
+            throw error
+        }
+
+        return {
+            message: json.message,
+            userId: json.userId,
+        }
+    } catch (error: any) {
+        console.error('Set Theme Error:', error)
+        throw error
+    }
+}

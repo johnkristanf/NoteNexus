@@ -11,3 +11,11 @@ export type RegisterUser = {
     email: string
     password: string
 }
+
+export type UserWithTheme = {
+    id: string
+    name: string | null
+    email: string | null
+    theme: string | null
+    image: string | null
+}

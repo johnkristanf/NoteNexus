@@ -98,7 +98,6 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
 
     return (
         <div className="flex items-center justify-between w-full">
-            
             {/* INPUT TEXT WHEN RENAMING CHAT TITLE */}
             {isEditing ? (
                 <input
@@ -115,7 +114,7 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
                 <Link
                     href={`/chat/${chat_id}`}
                     className={`flex-1 truncate text-sm px-2 py-1 rounded ${
-                        isActive ? 'font-medium text-violet-700 dark:text-violet-100' : ''
+                        isActive ? 'font-medium text-violet-700 dark:text-violet-700' : ''
                     }`}
                 >
                     {title}
@@ -131,11 +130,13 @@ export function EditableChatItem({ chat_id, title }: EditableChat) {
                     <PopoverContent className="w-32 flex flex-col !p-2">
                         {/* EDIT CHAT */}
                         <div
-                            className="flex items-center gap-2 mb-3 hover:cursor-pointer hover:bg-gray-100 p-2 rounded-md"
+                            className="group flex items-center gap-2 mb-3 hover:cursor-pointer hover:bg-gray-100  p-2 rounded-md"
                             onClick={handleRename}
                         >
-                            <PenLine className="size-5" />
-                            <h1 className="text-sm ">Rename</h1>
+                            <PenLine className="size-5 dark:group-hover:text-slate-900" />
+                            <h1 className="text-sm group-hover:text-slate-900 dark:group-hover:text-slate-900">
+                                Rename
+                            </h1>
                         </div>
 
                         {/* DELETE CHAT */}

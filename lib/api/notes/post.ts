@@ -2,7 +2,7 @@ export async function createNewNote(user_id: string) {
     console.log("user_id: ", user_id);
     
     try {
-        const response = await fetch('http://localhost:8000/api/v1/new/note', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/new/note`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -1,6 +1,6 @@
 export async function createNewChat(user_id: string) {
     try {
-        const response = await fetch('http://localhost:8000/api/v1/new/chat', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/new/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

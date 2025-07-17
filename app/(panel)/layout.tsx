@@ -3,20 +3,32 @@
 import { AppSidebar } from '@/components/app-sidebar'
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { MonitorCog, Moon, Sun } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PanelNavUser } from '@/components/panel-nav-user'
-import { User } from '@/types/user'
+import { useTheme } from 'next-themes'
+import { toast } from 'sonner'
+import { useMutation } from '@tanstack/react-query'
+import { setUserThemePreference } from '@/lib/api/user/post'
 
 export default function PanelLayout({
     children,
 }: Readonly<{
     children: React.ReactNode
 }>) {
+    const { setTheme } = useTheme()
+    const { data: session, update } = useSession()
+    const user = session?.user
+
+    const themes = [
+        { name: 'Light', tag: 'light', icon: Sun },
+        { name: 'Dark', tag: 'dark', icon: Moon },
+        { name: 'System', tag: 'system', icon: MonitorCog },
+    ]
+
     // DISABLING THE SIDEBAR TRIGGER WHEN CTRL + B IS PRESSED
     // AND ONLY APPLY TO QUILL EDITOR FOR BOLDING
     useEffect(() => {
@@ -52,19 +64,47 @@ export default function PanelLayout({
         }
     }, [])
 
-    const themes = [
-        { name: 'Light', icon: Sun },
-        { name: 'Dark', icon: Moon },
-        { name: 'System', icon: MonitorCog },
-    ]
-    const { data: session } = useSession()
-    const user = session?.user
+    // SET THEME PREFERENCE MUTATION
+    const mutation = useMutation({
+        mutationFn: setUserThemePreference,
+        onError: (error) => {
+            toast.error(error.message)
+        },
+    })
+
+    const handleSetTheme = (theme: string) => {
+        if (!user || !user.id) {
+            console.warn('User ID is undefined. Theme update aborted.')
+            return
+        }
+
+        const themeData = {
+            user_id: user.id,
+            theme,
+        }
+
+        setTheme(theme)
+
+        mutation.mutate(themeData, {
+            onSuccess: async () => {
+                // Update session so user.theme is in sync
+                await update({ theme })
+            },
+        })
+    }
+
+    // THEME SYNC WITH DATABASE VALUE
+    useEffect(() => {
+        if (user?.theme) {
+            setTheme(user.theme)
+        }
+    }, [session?.user?.theme, setTheme])
 
     return (
         <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
-                <header className="flex items-center justify-between pr-5 h-12 gap-2 border-b">
+                <header className="dark:bg-slate-900 flex items-center justify-between pr-5 h-12 gap-2 border-b">
                     <div className="flex items-center gap-2 px-3">
                         <SidebarTrigger />
                         <Separator orientation="vertical" className="mr-2 h-4" />
@@ -72,26 +112,34 @@ export default function PanelLayout({
 
                     <div className="flex items-center gap-2 ">
                         {/* THEME TOGGLE */}
-                        <Popover>
-                            <PopoverTrigger>
-                                <Sun className="size-5 hover:cursor-pointer" />
-                            </PopoverTrigger>
-                            <PopoverContent className="w-32 flex flex-col !p-2">
-                                <div className="flex flex-col ">
-                                    {themes.map((theme, index) => (
-                                        <button
-                                            type="button"
-                                            key={index}
-                                            className="flex items-center gap-2 text-sm hover:cursor-pointer hover:bg-gray-100 p-1 rounded-md"
-                                        >   
-                                            <theme.icon className="size-4" />
-                                            {theme.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </PopoverContent>
-                        </Popover>
+                        {user && (
+                            <Popover>
+                                <PopoverTrigger>
+                                    <Sun className="size-5 hover:cursor-pointer" />
+                                </PopoverTrigger>
+                                <PopoverContent className="w-32 flex flex-col !p-2">
+                                    <div className="flex flex-col ">
+                                        {themes.map((themed, index) => (
+                                            <button
+                                                key={index}
+                                                type="button"
+                                                onClick={() => handleSetTheme(themed.tag)}
+                                                className={`flex items-center gap-2 text-sm hover:cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded-md ${
+                                                    user.theme === themed.tag
+                                                        ? 'font-semibold text-violet-600'
+                                                        : ''
+                                                }`}
+                                            >
+                                                <themed.icon className="size-4" />
+                                                {themed.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        )}
 
+                        {/* USER AVATAR DROPDOWN */}
                         {user && <PanelNavUser user={user} />}
                     </div>
                 </header>

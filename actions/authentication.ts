@@ -6,12 +6,22 @@ export const signInOAuthAction = (provider: string, redirectTo?: string) => {
     signIn(provider, { redirectTo: redirectTo })
 }
 
-export const signInCredentialsAction = (formData?: FormData) => {
+export const signInCredentialsAction = async (
+    formData: FormData,
+) => {
     const data = formData instanceof FormData ? Object.fromEntries(formData.entries()) : undefined
-    signIn('credentials', {
+    const result = await signIn('credentials', {
         ...data,
-        callbackUrl: '/new-chat', // or `redirect: false` if you want to handle manually
+        redirect: false, // or `redirect: false` if you want to handle manually
     })
+
+
+    if (result?.error) {
+        const error = result?.error || 'Unknown error occurred'
+        return error
+    }
+
+    return 'SignInSuccessful'
 }
 
 export const signOutUser = (redirectTo?: string) => {
