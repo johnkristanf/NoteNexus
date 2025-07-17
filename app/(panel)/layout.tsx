@@ -39,7 +39,6 @@ export default function PanelLayout({
             const isInsideQuillEditor = !!activeEl?.closest('.ql-editor')
 
             const isStickyNoteOpen = window.__stickyNoteOpen
-            console.log('isStickyNoteOpen: ', isStickyNoteOpen)
 
             if (
                 (isStickyNoteOpen || isInsideQuillEditor) &&
