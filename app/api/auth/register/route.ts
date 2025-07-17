@@ -1,7 +1,7 @@
 import { existingUserByEmail, insertNewUser, insertUserAccount } from '@/database/queries/user'
 import { signUpSchema } from '@/lib/zod'
 import { NextRequest, NextResponse } from 'next/server'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { Account } from 'next-auth'
 import { ZodError } from 'zod'
 import { User } from '@/types/user'
@@ -45,7 +45,10 @@ export async function POST(request: NextRequest) {
         )
     } catch (error) {
         if (error instanceof ZodError) {
-            return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+            return NextResponse.json(
+                { error: 'Invalid input', details: error.issues },
+                { status: 400 }
+            )
         }
 
         console.error('❌ Registration failed:', error)
