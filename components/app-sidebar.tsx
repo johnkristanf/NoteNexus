@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/sidebar'
 
 import Link from 'next/link'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { fetchChats } from '@/lib/api/chats/get'
 import { toast } from 'sonner'
 import { EditableChatItem } from './editable-chat-item'
@@ -25,6 +25,9 @@ import { SearchChat } from './search-chat'
 import { useSession } from 'next-auth/react'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    const { data: session } = useSession()
+    const user = session?.user
+
     // FETCH ALL MESSAGES BY CHAT ID
     const {
         data: chats,
@@ -32,17 +35,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isError,
         error,
     } = useQuery({
-        queryKey: ['chats'],
-        queryFn: fetchChats,
+        queryKey: ['chats', user?.id],
+        queryFn: async () => {
+            if (!user?.id) {
+                throw new Error('User ID is required')
+            }
+            return fetchChats(user.id)
+        },
+        enabled: !!user?.id && !!session, // Double check both session and user.id exist
+        retry: false,
     })
 
     if (isError) {
         toast.error(error.message)
         return
     }
-
-    const { data: session } = useSession();
-    const user = session?.user;
 
     return (
         <Sidebar {...props}>
@@ -68,7 +75,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                {(isLoading && !user) ? (
+                {isLoading && !user ? (
                     <div className="flex justify-center text-lg mt-3 text-gray-500 animate-pulse">
                         Loading chats...
                     </div>

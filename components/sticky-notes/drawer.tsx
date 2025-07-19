@@ -26,7 +26,7 @@ export default function StickyNotesDrawer() {
     const [hoveredNote, setHoveredNote] = useState<number>()
     const queryClient = useQueryClient()
     const { data: session } = useSession()
-    const user = session?.user;
+    const user = session?.user
 
     const setNote = useNoteStore((state) => state.setNote)
 
@@ -37,8 +37,15 @@ export default function StickyNotesDrawer() {
         isError,
         error,
     } = useQuery({
-        queryKey: ['notes'],
-        queryFn: () => fetchNotes(),
+        queryKey: ['notes', user?.id],
+        queryFn: () => {
+            if (!user?.id) {
+                throw new Error('User ID is required')
+            }
+            return fetchNotes(user?.id)
+        },
+        enabled: !!user?.id && !!session, // Double check both session and user.id exist
+        retry: false,
     })
 
     if (isError) {
@@ -124,39 +131,45 @@ export default function StickyNotesDrawer() {
                         </h1>
 
                         {/* ACTUAL STICKY NOTES */}
-                        <div className="h-[75vh] flex flex-col gap-5 overflow-y-auto ">
-                            {notes &&
-                                notes.map((note) => (
-                                    <div
-                                        key={note.id}
-                                        className={cn(
-                                            'h-52 bg-violet-600 p-6 text-white relative flex-shrink-0 overflow-hidden',
-                                            hoveredNote === 1 ? 'opacity-75 cursor-pointer' : ''
-                                        )}
-                                        onMouseEnter={() => setHoveredNote(note.id)}
-                                        onMouseLeave={() => setHoveredNote(undefined)}
-                                        onDoubleClick={() => handleDbClickOpenNote(note)}
-                                    >
-                                        {/* NOTE OPTION */}
-                                        <div className="absolute top-1 right-1 text-xs">
-                                            {hoveredNote === note.id ? (
-                                                <StickyNoteOtions
-                                                    onOpenNote={() => handleOpenNote(note)}
-                                                    onDeleteNote={() => onDeleteNote(note.id)}
-                                                />
-                                            ) : (
-                                                <h1>{dateToTimeFormat(note.updated_at)}</h1>
-                                            )}
-                                        </div>
-
-                                        {/* NOTE TEXT */}
+                        {isLoading ? (
+                            <h1 className="text-gray-400 text-2xl dark:text-slate-100">
+                                Loading Notes...
+                            </h1>
+                        ) : (
+                            <div className="h-[75vh] flex flex-col gap-5 overflow-y-auto ">
+                                {notes &&
+                                    notes.map((note) => (
                                         <div
-                                            className="prose prose-sm max-w-none text-white"
-                                            dangerouslySetInnerHTML={{ __html: note.content }}
-                                        />
-                                    </div>
-                                ))}
-                        </div>
+                                            key={note.id}
+                                            className={cn(
+                                                'h-52 bg-violet-600 p-6 text-white relative flex-shrink-0 overflow-hidden',
+                                                hoveredNote === 1 ? 'opacity-75 cursor-pointer' : ''
+                                            )}
+                                            onMouseEnter={() => setHoveredNote(note.id)}
+                                            onMouseLeave={() => setHoveredNote(undefined)}
+                                            onDoubleClick={() => handleDbClickOpenNote(note)}
+                                        >
+                                            {/* NOTE OPTION */}
+                                            <div className="absolute top-1 right-1 text-xs">
+                                                {hoveredNote === note.id ? (
+                                                    <StickyNoteOtions
+                                                        onOpenNote={() => handleOpenNote(note)}
+                                                        onDeleteNote={() => onDeleteNote(note.id)}
+                                                    />
+                                                ) : (
+                                                    <h1>{dateToTimeFormat(note.updated_at)}</h1>
+                                                )}
+                                            </div>
+
+                                            {/* NOTE TEXT */}
+                                            <div
+                                                className="prose prose-sm max-w-none text-white"
+                                                dangerouslySetInnerHTML={{ __html: note.content }}
+                                            />
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
                     </DrawerDescription>
                 </DrawerHeader>
             </DrawerContent>
