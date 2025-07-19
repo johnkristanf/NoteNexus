@@ -39,7 +39,8 @@ export default function StickyNotesDrawer() {
         error,
     } = useQuery({
         queryKey: ['notes', userID],
-        queryFn: () => {
+        queryFn: async ({ queryKey }) => {
+            const [, userID] = queryKey // Extract userID from queryKey
             if (!userID) {
                 throw new Error('User ID is required')
             }
