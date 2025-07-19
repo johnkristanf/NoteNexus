@@ -44,7 +44,8 @@ export default function StickyNotesDrawer() {
             if (!userID) {
                 throw new Error('User ID is required')
             }
-            return fetchNotes(userID)
+            const notes = await fetchNotes(userID)
+            return notes
         },
         enabled: !!userID && !!session, // Double check both session and user.id exist
         retry: false,
