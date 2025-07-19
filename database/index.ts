@@ -1,10 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 
-const client = postgres(process.env.DATABASE_URL!, {
-    // optional config
-    max: 1, // good default for serverless
-})
+const client = postgres(process.env.DATABASE_URL!)
 
 // Pass the client to drizzle
 export const db = drizzle(client)
