@@ -27,6 +27,7 @@ export default function StickyNotesDrawer() {
     const queryClient = useQueryClient()
     const { data: session } = useSession()
     const user = session?.user
+    const userID = user?.id
 
     const setNote = useNoteStore((state) => state.setNote)
 
@@ -37,14 +38,14 @@ export default function StickyNotesDrawer() {
         isError,
         error,
     } = useQuery({
-        queryKey: ['notes', user?.id],
+        queryKey: ['notes', userID],
         queryFn: () => {
-            if (!user?.id) {
+            if (!userID) {
                 throw new Error('User ID is required')
             }
-            return fetchNotes(user?.id)
+            return fetchNotes(userID)
         },
-        enabled: !!user?.id && !!session, // Double check both session and user.id exist
+        enabled: !!userID && !!session, // Double check both session and user.id exist
         retry: false,
     })
 

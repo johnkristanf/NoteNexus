@@ -27,6 +27,7 @@ import { useSession } from 'next-auth/react'
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const { data: session } = useSession()
     const user = session?.user
+    const userID = user?.id
 
     // FETCH ALL MESSAGES BY CHAT ID
     const {
@@ -35,14 +36,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isError,
         error,
     } = useQuery({
-        queryKey: ['chats', user?.id],
+        queryKey: ['chats', userID],
         queryFn: async () => {
-            if (!user?.id) {
+            if (!userID) {
                 throw new Error('User ID is required')
             }
             return fetchChats(user.id)
         },
-        enabled: !!user?.id && !!session, // Double check both session and user.id exist
+        enabled: !!userID && !!session, // Double check both session and user.id exist
         retry: false,
     })
 
