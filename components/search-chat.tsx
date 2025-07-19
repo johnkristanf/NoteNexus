@@ -15,14 +15,24 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchChats } from '@/lib/api/chats/get'
 import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 export function SearchChat() {
     const [query, setQuery] = useState('')
     const [open, setOpen] = useState(false)
 
+    const { data: session } = useSession()
+    const user = session?.user
+    const userID = user?.id
+
     const { data: chats, isLoading } = useQuery({
-        queryKey: ['chats'],
-        queryFn: fetchChats,
+        queryKey: ['chats', userID],
+        queryFn: async () => {
+            const chats = await fetchChats(userID as string)
+            return chats
+        },
+        enabled: !!userID && !!session, // Double check both session and user.id exist
+        retry: false,
     })
 
     const filtered = chats?.filter((chat) => chat.title.toLowerCase().includes(query.toLowerCase()))
@@ -36,7 +46,7 @@ export function SearchChat() {
 
             <DialogContent className="!p-2 sm:max-w-lg font-semibold">
                 <DialogTitle />
-                
+
                 <div className="absolute top-0 w-full border-b  py-3">
                     <input
                         autoFocus
@@ -48,8 +58,8 @@ export function SearchChat() {
                 </div>
 
                 <div className="w-full p-3 rounded-md mt-8 hover:bg-gray-100">
-                    <Link href={'/new-chat'} className='flex items-center gap-1 text-sm'>
-                        <NotebookPen className='size-5' />
+                    <Link href={'/new-chat'} className="flex items-center gap-1 text-sm">
+                        <NotebookPen className="size-5" />
                         New Chat
                     </Link>
                 </div>
