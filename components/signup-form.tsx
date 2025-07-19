@@ -44,7 +44,6 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'div'>)
     })
 
     const onSubmit: SubmitHandler<RegisterUser> = (data) => {
-        console.log('data: ', data)
         mutation.mutate(data)
     }
 
