@@ -41,7 +41,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             if (!userID) {
                 throw new Error('User ID is required')
             }
-            return fetchChats(user.id)
+            return fetchChats(userID)
         },
         enabled: !!userID && !!session, // Double check both session and user.id exist
         retry: false,
