@@ -37,8 +37,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         error,
     } = useQuery({
         queryKey: ['chats', userID],
-        queryFn: async ({ queryKey }) => {
-            const [, userID] = queryKey // Extract userID from queryKey
+        queryFn: async () => {
             if (!userID) {
                 throw new Error('User ID is required')
             }
